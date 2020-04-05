@@ -9,7 +9,7 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
 SAMPLE_SIZE = pyaudio.get_sample_size(FORMAT)
-LATENCY_COMPENSATION = 2048 * 6
+LATENCY_COMPENSATION = 2048 * 6 * SAMPLE_SIZE
 LOOP_SIZE_FRAMES = 88200
 LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
 LOOP_SIZE_BYTES = LOOP_SIZE_SAMPLES * SAMPLE_SIZE
@@ -58,12 +58,10 @@ class RecordPlaybackDefinition:
     self.play_from = play_from
     self.play_at = play_at
     self.play_times = play_times
-    self.wave_data = np.zeros(LOOP_SIZE_SAMPLES, dtype=np.uint16)
-    self.wave_data2 = bytearray(LOOP_SIZE_BYTES)
+    self.wave_data = bytearray(LOOP_SIZE_BYTES)
 
     self.filled = False # set to true when certain that the wave data can be fully reused
-    self.play_from_samples = self.play_from * LOOP_SIZE_SAMPLES
-    self.play_from_bytes = self.play_from_samples * SAMPLE_SIZE
+    self.play_from_bytes = self.play_from * LOOP_SIZE_BYTES
 
   def get_loop_wave_data(self):
 
@@ -73,17 +71,14 @@ class RecordPlaybackDefinition:
     if self.filled:
       return self.wave_data
 
-    if recording_position < self.play_from_samples:
+    if recording_position < self.play_from_bytes:
       return self.wave_data # still zeros
 
-    available_samples = min( recording_position - self.play_from_samples, LOOP_SIZE_SAMPLES )
-    available_bytes = available_samples * SAMPLE_SIZE
+    available_bytes = min( recording_position - self.play_from_bytes, LOOP_SIZE_BYTES )
 
-    self.wave_data = np.frombuffer(
-      recording_wave_data[self.play_from_bytes:self.play_from_bytes + available_bytes],
-      dtype=np.uint16)
+    self.wave_data[0:available_bytes] = recording_wave_data[self.play_from_bytes:self.play_from_bytes + available_bytes]
 
-    if available_samples >= LOOP_SIZE_SAMPLES:
+    if available_bytes >= LOOP_SIZE_BYTES:
       self.filled = True
 
     return self.wave_data
@@ -94,8 +89,8 @@ playback_definition_list = []
 playback_definition_list = [
   FilePlaybackDefinition('click_120bpm.wav', play_from=0, play_at=0, play_times=99),
   FilePlaybackDefinition('layer1.wav', play_from=1, play_at=1, play_times=1),
-  FilePlaybackDefinition('layer1.wav', play_from=2, play_at=2, play_times=99)
-  # RecordPlaybackDefinition(play_from=1, play_at=3, play_times=99)
+  FilePlaybackDefinition('layer1.wav', play_from=2, play_at=2, play_times=99),
+  RecordPlaybackDefinition(play_from=1, play_at=3, play_times=99)
   # RecordPlaybackDefinition(play_from=3, play_at=4, play_times=99)
 ]
 
@@ -116,7 +111,7 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
   # in_data = np.frombuffer(in_data, dtype=np.uint16)
 
-  recording_position = playback_position - LATENCY_COMPENSATION
+  recording_position = ( playback_position * SAMPLE_SIZE ) - LATENCY_COMPENSATION
 
   if recording_position < len(recording_wave_data):
 
