@@ -47,15 +47,8 @@ class FilePlaybackDefinition:
       available_frames = min( w.getnframes() - self.play_from_frames, LOOP_SIZE_FRAMES )
       available_bytes = available_frames * CHANNELS * SAMPLE_SIZE
 
-      self.wave_data = np.zeros(LOOP_SIZE_SAMPLES, dtype=np.uint16)
-      np.put(
-        self.wave_data,
-        range(0, available_frames * CHANNELS),
-        np.frombuffer(
-          w.readframes(self.play_from_frames + available_frames)[self.play_from_bytes:self.play_from_bytes + available_bytes],
-          dtype=np.uint16
-        )
-      )
+      self.wave_data = bytearray(LOOP_SIZE_BYTES)
+      self.wave_data[0:available_bytes] = w.readframes(self.play_from_frames + available_frames)[self.play_from_bytes:self.play_from_bytes + available_bytes]
 
   def get_loop_wave_data(self):
     return self.wave_data
@@ -189,7 +182,7 @@ def click_callback(in_data, frame_count, time_info, status_flags):
         if len(loop_wave_data) > 0:
 
           loop_wave_data = np.take(
-            loop_wave_data,
+            np.frombuffer(loop_wave_data, dtype=np.uint16),
             range( loop_def.loop_start, loop_def.loop_end ))
 
           loop_wave_data_list.append(loop_wave_data)
