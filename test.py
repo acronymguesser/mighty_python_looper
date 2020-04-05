@@ -17,7 +17,7 @@ RECORD_LOOP_COUNT = 6 # Total loops that will be recorded. After this is reached
 
 playback_position = 0
 recording_position = 0
-recording_wave_data = np.zeros(LOOP_SIZE_SAMPLES * RECORD_LOOP_COUNT, dtype=np.uint16)
+recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
 command_exit = False
 
 wrecord = wave.open("record.wav", 'wb')
@@ -87,7 +87,7 @@ class RecordPlaybackDefinition:
     available_bytes = available_samples * SAMPLE_SIZE
 
     self.wave_data = np.frombuffer(
-      recording_wave_data.tobytes()[self.play_from_bytes:self.play_from_bytes + available_bytes],
+      recording_wave_data[self.play_from_bytes:self.play_from_bytes + available_bytes],
       dtype=np.uint16)
 
     if available_samples >= LOOP_SIZE_SAMPLES:
@@ -121,7 +121,7 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
   # APPEND RECORD
 
-  in_data = np.frombuffer(in_data, dtype=np.uint16)
+  # in_data = np.frombuffer(in_data, dtype=np.uint16)
 
   recording_position = playback_position - LATENCY_COMPENSATION
 
@@ -136,10 +136,12 @@ def click_callback(in_data, frame_count, time_info, status_flags):
       in_data = in_data[recording_position + len(in_data) - len(recording_wave_data):]
 
     if recording_position >= 0 and len(in_data) > 0:
-      np.put(
-        recording_wave_data,
-        range(recording_position, recording_position + len(in_data)),
-        in_data)
+      recording_wave_data[recording_position:recording_position + len(in_data)] = in_data
+
+      # np.put(
+      #   recording_wave_data,
+      #   range(recording_position, recording_position + len(in_data)),
+      #   in_data)
 
       recording_position += len(in_data)
 
