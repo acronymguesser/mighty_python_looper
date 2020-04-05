@@ -7,36 +7,32 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
 SAMPLE_SIZE = pyaudio.get_sample_size(FORMAT)
-LATENCY_COMPENSATION = 2048 * 6 * SAMPLE_SIZE
-LOOP_SIZE_FRAMES = 88200
-LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
-LOOP_SIZE_BYTES = LOOP_SIZE_SAMPLES * SAMPLE_SIZE
-RECORD_LOOP_COUNT = 6 # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
-
-stream = None
 
 playback_definition_list = []
 
-def initialize(loop_bpm, loop_duration_beat):
+def initialize(loop_bpm, loop_duration_beat, record_loop_count):
+
   global LOOP_SIZE_FRAMES
   global LOOP_SIZE_SAMPLES
   global LOOP_SIZE_BYTES
-
-  global playback_position
-  global playback_wave_data
-  global recording_position
-  global recording_wave_data
-  global exit_looper
-
   loop_seconds = ( 60.0 / loop_bpm ) * loop_duration_beat
   LOOP_SIZE_FRAMES = math.floor(loop_seconds * RATE)
   LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
   LOOP_SIZE_BYTES = LOOP_SIZE_SAMPLES * SAMPLE_SIZE
 
+  global RECORD_LOOP_COUNT
+  RECORD_LOOP_COUNT = record_loop_count # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
+
+  global playback_position
+  global playback_wave_data
+  global recording_position
+  global recording_wave_data
   playback_position = 0
   playback_wave_data = bytearray()
   recording_position = 0
   recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
+
+  global exit_looper
   exit_looper = False
 
 def set_playback_definition_list(pdl):
@@ -144,6 +140,10 @@ def start_stream():
   global stream
   p = pyaudio.PyAudio()
   stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=audio_stream_callback)
+
+  global LATENCY_COMPENSATION
+  LATENCY_COMPENSATION = int( RATE * ( stream.get_input_latency() + stream.get_output_latency() ) * CHANNELS * SAMPLE_SIZE )
+
   stream.start_stream()
 
 def is_active():
