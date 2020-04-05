@@ -8,9 +8,11 @@ CHUNK = 44100
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
+SAMPLE_SIZE = 2
 LATENCY_COMPENSATION = 2048 * 6
 LOOP_SIZE_FRAMES = 88200
 LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
+LOOP_SIZE_BYTES = LOOP_SIZE_SAMPLES * SAMPLE_SIZE
 RECORD_LOOP_COUNT = 6 # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
 
 playback_position = 0
@@ -31,9 +33,6 @@ class FilePlaybackDefinition:
       self.wave_data = np.frombuffer(wclick.readframes(frames), dtype=np.uint16)
       self.wave_data = np.take(self.wave_data, range(0, LOOP_SIZE_SAMPLES))
 
-  def calculate_loop_wave_data(self):
-    pass
-
   def get_loop_wave_data(self):
     return self.wave_data
 
@@ -43,36 +42,14 @@ class RecordPlaybackDefinition:
     self.play_at = play_at
     self.play_times = play_times
     self.wave_data = np.zeros(LOOP_SIZE_SAMPLES, dtype=np.uint16)
+    self.wave_data2 = bytearray(LOOP_SIZE_BYTES)
 
     self.filled = False # set to true when certain that the wave data can be fully reused
     self.play_from_samples = self.play_from * LOOP_SIZE_SAMPLES
-
-  def calculate_loop_wave_data(self):
-
-    global recording_position
-    global recording_wave_data
-
-    if self.filled:
-      return self.wave_data
-
-    if recording_position < self.play_from_samples:
-      return self.wave_data # still zeros
-
-    available = min( recording_position - self.play_from_samples, LOOP_SIZE_SAMPLES )
-
-    np.put(
-      self.wave_data,
-      range(0, available),
-      np.take(recording_wave_data, range(self.play_from_samples, self.play_from_samples + available))
-    )
-
-    if available >= LOOP_SIZE_SAMPLES:
-      self.filled = True
+    self.play_from_bytes = self.play_from_samples * SAMPLE_SIZE
 
   def get_loop_wave_data(self):
 
-    return self.wave_data
-
     global recording_position
     global recording_wave_data
 
@@ -82,16 +59,14 @@ class RecordPlaybackDefinition:
     if recording_position < self.play_from_samples:
       return self.wave_data # still zeros
 
-    available = min( recording_position - self.play_from_samples, LOOP_SIZE_SAMPLES )
+    available_samples = min( recording_position - self.play_from_samples, LOOP_SIZE_SAMPLES )
+    available_bytes = available_samples * SAMPLE_SIZE
 
-    np.put(
-      self.wave_data,
-      range(0, available),
-      np.take(recording_wave_data, range(self.play_from_samples, self.play_from_samples + available))
-    )
+    self.wave_data = np.frombuffer(
+      recording_wave_data.tobytes()[self.play_from_bytes:self.play_from_bytes + available_bytes],
+      dtype=np.uint16)
 
-    if available >= LOOP_SIZE_SAMPLES:
-      # self.wave_data = np.take(recording_wave_data, range(self.play_from_samples, self.play_to_samples))
+    if available_samples >= LOOP_SIZE_SAMPLES:
       self.filled = True
 
     return self.wave_data
@@ -124,7 +99,7 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
     if recording_position < 0 and recording_position + len(in_data) > 0:
       # discard data before 0
-      in_data = in_data[-(recording_position + len(in_data))]
+      in_data = in_data[:-(recording_position + len(in_data))]
       recording_position = 0
 
     if recording_position + len(in_data) > len(recording_wave_data):
@@ -137,9 +112,6 @@ def click_callback(in_data, frame_count, time_info, status_flags):
         in_data)
 
       recording_position += len(in_data)
-
-      for playback_definition in playback_definition_list:
-        playback_definition.calculate_loop_wave_data()
 
   # GENERATE PLAYBACK 
 
