@@ -96,6 +96,9 @@ Initialization values:
   where the audio section will be extracted
 - `play_at` indicates the first session loop where the audio section is played
 - `play_times` indicates how many times the audio section is played
+- `overlap` indicates if an additional loop cycle shall be mixed with the cycle
+  specified in `play_from`. This is useful to preserve long tails (e.g. when
+  using delay or reverb).
 
 # Running the application #
 
