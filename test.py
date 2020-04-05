@@ -31,18 +31,31 @@ wplayback.setsampwidth(SAMPLE_SIZE)
 wplayback.setframerate(RATE)
 
 class FilePlaybackDefinition:
-  def __init__(self, file_name, play_at, play_times):
+  def __init__(self, file_name, play_from, play_at, play_times):
     self.file_name = file_name
+    self.play_from = play_from
     self.play_at = play_at
     self.play_times = play_times
+    
+    self.play_from_frames = self.play_from * LOOP_SIZE_FRAMES
+    self.play_from_bytes = self.play_from * LOOP_SIZE_BYTES
 
-    with wave.open(self.file_name, 'rb') as wclick:
-      if wclick.getnchannels() != 2 or wclick.getsampwidth() != 2:
+    with wave.open(self.file_name, 'rb') as w:
+      if w.getnchannels() != 2 or w.getsampwidth() != 2:
         raise Exception("Only 16-bit stereo files supported.")
 
-      frames = wclick.getnframes()
-      self.wave_data = np.frombuffer(wclick.readframes(frames), dtype=np.uint16)
-      self.wave_data = np.take(self.wave_data, range(0, LOOP_SIZE_SAMPLES))
+      available_frames = min( w.getnframes() - self.play_from_frames, LOOP_SIZE_FRAMES )
+      available_bytes = available_frames * CHANNELS * SAMPLE_SIZE
+
+      self.wave_data = np.zeros(LOOP_SIZE_SAMPLES, dtype=np.uint16)
+      np.put(
+        self.wave_data,
+        range(0, available_frames * CHANNELS),
+        np.frombuffer(
+          w.readframes(self.play_from_frames + available_frames)[self.play_from_bytes:self.play_from_bytes + available_bytes],
+          dtype=np.uint16
+        )
+      )
 
   def get_loop_wave_data(self):
     return self.wave_data
@@ -86,8 +99,10 @@ playback_definition_list = []
 
 # SETUP INITIAL COUNT
 playback_definition_list = [
-  FilePlaybackDefinition('click_120bpm.wav', play_at=0, play_times=99),
-  RecordPlaybackDefinition(play_from=1, play_at=3, play_times=99)
+  FilePlaybackDefinition('click_120bpm.wav', play_from=0, play_at=0, play_times=99),
+  FilePlaybackDefinition('layer1.wav', play_from=1, play_at=1, play_times=1),
+  FilePlaybackDefinition('layer1.wav', play_from=2, play_at=2, play_times=99)
+  # RecordPlaybackDefinition(play_from=1, play_at=3, play_times=99)
   # RecordPlaybackDefinition(play_from=3, play_at=4, play_times=99)
 ]
 
@@ -103,8 +118,6 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
   if command_exit:
     return (bytes(), pyaudio.paComplete)
-
-  wrecord.writeframes(in_data)
 
   # APPEND RECORD
 
@@ -130,6 +143,8 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
       recording_position += len(in_data)
 
+      wrecord.writeframes(in_data)
+  
   # GENERATE PLAYBACK 
 
   out_wave_data = np.zeros(0, dtype=np.uint16)
