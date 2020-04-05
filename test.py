@@ -156,8 +156,7 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
           loop_wave_data = np.take(
             loop_wave_data,
-            range( loop_def.loop_start, loop_def.loop_end ),
-            mode='warp')
+            range( loop_def.loop_start, loop_def.loop_end ))
 
           loop_wave_data_list.append(loop_wave_data)
 
