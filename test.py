@@ -97,8 +97,6 @@ playback_definition_list = [
 
 p = pyaudio.PyAudio()
 
-# streamr = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-
 def audio_stream_callback(in_data, frame_count, time_info, status_flags):
   global playback_position
   global recording_position
@@ -109,11 +107,9 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
   if command_exit:
     return (bytes(), pyaudio.paComplete)
 
-  a = time.perf_counter()
+  # a = time.perf_counter()
 
   # APPEND RECORD
-
-  # in_data = np.frombuffer(in_data, dtype=np.uint16)
 
   recording_position = ( playback_position * SAMPLE_SIZE ) - LATENCY_COMPENSATION
 
@@ -129,12 +125,6 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
 
     if recording_position >= 0 and len(in_data) > 0:
       recording_wave_data[recording_position:recording_position + len(in_data)] = in_data
-
-      # np.put(
-      #   recording_wave_data,
-      #   range(recording_position, recording_position + len(in_data)),
-      #   in_data)
-
       recording_position += len(in_data)
 
   # GENERATE PLAYBACK 
@@ -183,10 +173,6 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
             dtype=np.uint16
           )
 
-          # loop_wave_data = np.take(
-          #   np.frombuffer(loop_wave_data, dtype=np.uint16),
-          #   range( loop_def.loop_start, loop_def.loop_end ))
-
           loop_wave_data_list.append(loop_wave_data)
 
     if len(loop_wave_data_list):
@@ -198,12 +184,14 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
 
   playback_position = playback_position + total_samples_to_playback
 
-  playback_wave_data += bytes(out_wave_data)
+  out_wave_data_bytes = bytes(out_wave_data)
 
-  b = time.perf_counter()
-  print (b - a)
+  playback_wave_data += out_wave_data_bytes
 
-  return (out_wave_data, pyaudio.paContinue)
+  # b = time.perf_counter()
+  # print (b - a)
+
+  return (out_wave_data_bytes, pyaudio.paContinue)
 
 stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=audio_stream_callback)
 stream.start_stream()
