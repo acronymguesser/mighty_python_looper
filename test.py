@@ -8,7 +8,7 @@ CHUNK = 44100
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
-SAMPLE_SIZE = 2
+SAMPLE_SIZE = pyaudio.get_sample_size(FORMAT)
 LATENCY_COMPENSATION = 2048 * 6
 LOOP_SIZE_FRAMES = 88200
 LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
@@ -18,6 +18,17 @@ RECORD_LOOP_COUNT = 6 # Total loops that will be recorded. After this is reached
 playback_position = 0
 recording_position = 0
 recording_wave_data = np.zeros(LOOP_SIZE_SAMPLES * RECORD_LOOP_COUNT, dtype=np.uint16)
+command_exit = False
+
+wrecord = wave.open("record.wav", 'wb')
+wrecord.setnchannels(CHANNELS)
+wrecord.setsampwidth(SAMPLE_SIZE)
+wrecord.setframerate(RATE)
+
+wplayback = wave.open("playback.wav", 'wb')
+wplayback.setnchannels(CHANNELS)
+wplayback.setsampwidth(SAMPLE_SIZE)
+wplayback.setframerate(RATE)
 
 class FilePlaybackDefinition:
   def __init__(self, file_name, play_at, play_times):
@@ -88,6 +99,12 @@ def click_callback(in_data, frame_count, time_info, status_flags):
   global playback_position
   global recording_position
   global recording_wave_data
+  global command_exit
+
+  if command_exit:
+    return (bytes(), pyaudio.paComplete)
+
+  wrecord.writeframes(in_data)
 
   # APPEND RECORD
 
@@ -169,14 +186,23 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
   playback_position = playback_position + total_samples_to_playback
 
+  wplayback.writeframes(out_wave_data)
+
   return (out_wave_data, pyaudio.paContinue)
 
 stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=click_callback)
 stream.start_stream()
 
 input()
+command_exit = True
+
+while stream.is_active():
+  time.sleep(0.1)
 
 stream.stop_stream()
 stream.close()
+
+wrecord.close()
+wplayback.close()
 
 p.terminate()
