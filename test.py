@@ -18,6 +18,7 @@ RECORD_LOOP_COUNT = 6 # Total loops that will be recorded. After this is reached
 playback_position = 0
 recording_position = 0
 recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
+playback_wave_data = bytearray()
 command_exit = False
 
 wrecord = wave.open("record.wav", 'wb')
@@ -98,14 +99,17 @@ p = pyaudio.PyAudio()
 
 # streamr = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
-def click_callback(in_data, frame_count, time_info, status_flags):
+def audio_stream_callback(in_data, frame_count, time_info, status_flags):
   global playback_position
   global recording_position
   global recording_wave_data
+  global playback_wave_data
   global command_exit
 
   if command_exit:
     return (bytes(), pyaudio.paComplete)
+
+  a = time.perf_counter()
 
   # APPEND RECORD
 
@@ -133,8 +137,6 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
       recording_position += len(in_data)
 
-      wrecord.writeframes(in_data)
-  
   # GENERATE PLAYBACK 
 
   out_wave_data = np.zeros(0, dtype=np.uint16)
@@ -174,11 +176,16 @@ def click_callback(in_data, frame_count, time_info, status_flags):
       if playback_definition.play_at <= loop_def.loopn and playback_definition.play_at + playback_definition.play_times > loop_def.loopn:
 
         loop_wave_data = playback_definition.get_loop_wave_data()
-        if len(loop_wave_data) > 0:
+        if loop_wave_data:
 
-          loop_wave_data = np.take(
-            np.frombuffer(loop_wave_data, dtype=np.uint16),
-            range( loop_def.loop_start, loop_def.loop_end ))
+          loop_wave_data = np.frombuffer(
+            loop_wave_data[loop_def.loop_start * SAMPLE_SIZE:loop_def.loop_end * SAMPLE_SIZE],
+            dtype=np.uint16
+          )
+
+          # loop_wave_data = np.take(
+          #   np.frombuffer(loop_wave_data, dtype=np.uint16),
+          #   range( loop_def.loop_start, loop_def.loop_end ))
 
           loop_wave_data_list.append(loop_wave_data)
 
@@ -191,11 +198,14 @@ def click_callback(in_data, frame_count, time_info, status_flags):
 
   playback_position = playback_position + total_samples_to_playback
 
-  wplayback.writeframes(out_wave_data)
+  playback_wave_data += bytes(out_wave_data)
+
+  b = time.perf_counter()
+  print (b - a)
 
   return (out_wave_data, pyaudio.paContinue)
 
-stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=click_callback)
+stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=audio_stream_callback)
 stream.start_stream()
 
 input()
@@ -207,7 +217,10 @@ while stream.is_active():
 stream.stop_stream()
 stream.close()
 
+wrecord.writeframes(recording_wave_data)
 wrecord.close()
+
+wplayback.writeframes(playback_wave_data)
 wplayback.close()
 
 p.terminate()
