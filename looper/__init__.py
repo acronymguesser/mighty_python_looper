@@ -2,6 +2,7 @@ import pyaudio # http://people.csail.mit.edu/hubert/pyaudio/
 import wave
 import math
 import numpy as np
+from looper.settings import LooperSettings
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
@@ -10,18 +11,18 @@ SAMPLE_SIZE = pyaudio.get_sample_size(FORMAT)
 
 playback_definition_list = []
 
-def initialize(loop_bpm, loop_duration_beat, record_loop_count):
+def initialize(looper_settings):
 
   global LOOP_SIZE_FRAMES
   global LOOP_SIZE_SAMPLES
   global LOOP_SIZE_BYTES
-  loop_seconds = ( 60.0 / loop_bpm ) * loop_duration_beat
+  loop_seconds = ( 60.0 / looper_settings.loop_bpm ) * looper_settings.loop_duration_beats
   LOOP_SIZE_FRAMES = math.floor(loop_seconds * RATE)
   LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
   LOOP_SIZE_BYTES = LOOP_SIZE_SAMPLES * SAMPLE_SIZE
 
   global RECORD_LOOP_COUNT
-  RECORD_LOOP_COUNT = record_loop_count # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
+  RECORD_LOOP_COUNT = looper_settings.record_loop_count # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
 
   global playback_position
   global playback_wave_data

@@ -2,11 +2,10 @@ import wave
 import time
 import looper
 
-looper.initialize(loop_bpm=120, loop_duration_beat=4, record_loop_count=6)
+looper_config = __import__("looper_config")
 
-# this module uses settings assigned during looper.initialize, so it must be called after it
-playback_definition_list = __import__("playback_definitions").playback_definition_list
-looper.set_playback_definition_list(playback_definition_list)
+looper.initialize(looper_config.get_looper_settings())
+looper.set_playback_definition_list(looper_config.get_playback_definition_list())
 
 looper.start_stream()
 
