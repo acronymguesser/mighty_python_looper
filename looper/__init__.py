@@ -1,10 +1,8 @@
 import pyaudio # http://people.csail.mit.edu/hubert/pyaudio/
 import wave
-import time
-import numpy as np
 import math
+import numpy as np
 
-CHUNK = 44100
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
@@ -15,96 +13,44 @@ LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
 LOOP_SIZE_BYTES = LOOP_SIZE_SAMPLES * SAMPLE_SIZE
 RECORD_LOOP_COUNT = 6 # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
 
-playback_position = 0
-recording_position = 0
-recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
-playback_wave_data = bytearray()
-command_exit = False
-
-wrecord = wave.open("record.wav", 'wb')
-wrecord.setnchannels(CHANNELS)
-wrecord.setsampwidth(SAMPLE_SIZE)
-wrecord.setframerate(RATE)
-
-wplayback = wave.open("playback.wav", 'wb')
-wplayback.setnchannels(CHANNELS)
-wplayback.setsampwidth(SAMPLE_SIZE)
-wplayback.setframerate(RATE)
-
-class FilePlaybackDefinition:
-  def __init__(self, file_name, play_from, play_at, play_times):
-    self.file_name = file_name
-    self.play_from = play_from
-    self.play_at = play_at
-    self.play_times = play_times
-    
-    self.play_from_frames = self.play_from * LOOP_SIZE_FRAMES
-    self.play_from_bytes = self.play_from * LOOP_SIZE_BYTES
-
-    with wave.open(self.file_name, 'rb') as w:
-      if w.getnchannels() != 2 or w.getsampwidth() != 2:
-        raise Exception("Only 16-bit stereo files supported.")
-
-      available_frames = min( w.getnframes() - self.play_from_frames, LOOP_SIZE_FRAMES )
-      available_bytes = available_frames * CHANNELS * SAMPLE_SIZE
-
-      self.wave_data = bytearray(LOOP_SIZE_BYTES)
-      self.wave_data[0:available_bytes] = w.readframes(self.play_from_frames + available_frames)[self.play_from_bytes:self.play_from_bytes + available_bytes]
-
-  def get_loop_wave_data(self):
-    return self.wave_data
-
-class RecordPlaybackDefinition:
-  def __init__(self, play_from, play_at, play_times):
-    self.play_from = play_from
-    self.play_at = play_at
-    self.play_times = play_times
-    self.wave_data = bytearray(LOOP_SIZE_BYTES)
-
-    self.filled = False # set to true when certain that the wave data can be fully reused
-    self.play_from_bytes = self.play_from * LOOP_SIZE_BYTES
-
-  def get_loop_wave_data(self):
-
-    global recording_position
-    global recording_wave_data
-
-    if self.filled:
-      return self.wave_data
-
-    if recording_position < self.play_from_bytes:
-      return self.wave_data # still zeros
-
-    available_bytes = min( recording_position - self.play_from_bytes, LOOP_SIZE_BYTES )
-
-    self.wave_data[0:available_bytes] = recording_wave_data[self.play_from_bytes:self.play_from_bytes + available_bytes]
-
-    if available_bytes >= LOOP_SIZE_BYTES:
-      self.filled = True
-
-    return self.wave_data
+stream = None
 
 playback_definition_list = []
 
-# SETUP INITIAL COUNT
-playback_definition_list = [
-  FilePlaybackDefinition('click_120bpm.wav', play_from=0, play_at=0, play_times=99),
-  FilePlaybackDefinition('layer1.wav', play_from=1, play_at=1, play_times=1),
-  FilePlaybackDefinition('layer1.wav', play_from=2, play_at=2, play_times=99),
-  RecordPlaybackDefinition(play_from=1, play_at=3, play_times=99)
-  # RecordPlaybackDefinition(play_from=3, play_at=4, play_times=99)
-]
+def initialize(loop_bpm, loop_duration_beat):
+  global LOOP_SIZE_FRAMES
+  global LOOP_SIZE_SAMPLES
+  global LOOP_SIZE_BYTES
 
-p = pyaudio.PyAudio()
+  global playback_position
+  global playback_wave_data
+  global recording_position
+  global recording_wave_data
+  global exit_looper
+
+  loop_seconds = ( 60.0 / loop_bpm ) * loop_duration_beat
+  LOOP_SIZE_FRAMES = math.floor(loop_seconds * RATE)
+  LOOP_SIZE_SAMPLES = LOOP_SIZE_FRAMES * CHANNELS
+  LOOP_SIZE_BYTES = LOOP_SIZE_SAMPLES * SAMPLE_SIZE
+
+  playback_position = 0
+  playback_wave_data = bytearray()
+  recording_position = 0
+  recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
+  exit_looper = False
+
+def set_playback_definition_list(pdl):
+  global playback_definition_list
+  playback_definition_list = pdl
 
 def audio_stream_callback(in_data, frame_count, time_info, status_flags):
   global playback_position
+  global playback_wave_data
   global recording_position
   global recording_wave_data
-  global playback_wave_data
-  global command_exit
+  global exit_looper
 
-  if command_exit:
+  if exit_looper:
     return (bytes(), pyaudio.paComplete)
 
   # a = time.perf_counter()
@@ -145,7 +91,7 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
   current_loop = LoopDef(
     loopn = math.floor( playback_position / LOOP_SIZE_SAMPLES ),
     loop_start = playback_position % LOOP_SIZE_SAMPLES,
-    loop_end = min( ( playback_position % LOOP_SIZE_SAMPLES ) + total_samples_to_playback, LOOP_SIZE_SAMPLES )    
+    loop_end = min( ( playback_position % LOOP_SIZE_SAMPLES ) + total_samples_to_playback, LOOP_SIZE_SAMPLES )
   )
   loop_def_list.append(current_loop)
 
@@ -193,22 +139,21 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
 
   return (out_wave_data_bytes, pyaudio.paContinue)
 
-stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=audio_stream_callback)
-stream.start_stream()
+def start_stream():
+  global p
+  global stream
+  p = pyaudio.PyAudio()
+  stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=audio_stream_callback)
+  stream.start_stream()
 
-input()
-command_exit = True
+def is_active():
+  return stream and stream.is_active()
 
-while stream.is_active():
-  time.sleep(0.1)
-
-stream.stop_stream()
-stream.close()
-
-wrecord.writeframes(recording_wave_data)
-wrecord.close()
-
-wplayback.writeframes(playback_wave_data)
-wplayback.close()
-
-p.terminate()
+def stop_stream():
+  global p
+  global stream
+  stream.stop_stream()
+  stream.close()
+  stream = None
+  p.terminate()
+  p = None
