@@ -125,7 +125,7 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
 
     out_wave_data = np.concatenate([out_wave_data, loop_def.loop_wave_data])
 
-  playback_position = playback_position + total_samples_to_playback
+    playback_position = playback_position + ( loop_def.loop_end - loop_def.loop_start )
 
   out_wave_data_bytes = bytes(out_wave_data)
 

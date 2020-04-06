@@ -74,9 +74,9 @@ The method `get_playback_definition_list` must return a list of Playback
 Definition objects (in module `looper.playback_definitions`), which are described
 below.
 
-### FilePlaybackDefinition ###
+### FileLoopPlaybackDefinition ###
 
-Specifies playback of any section of an existing WAV file.
+Specifies loop playback of any section of an existing WAV file.
 
 Initialization values:
 
@@ -86,9 +86,20 @@ Initialization values:
 - `play_at` indicates the first session loop where the audio section is played
 - `play_times` indicates how many times the audio section is played
 
-### RecordPlaybackDefinition ###
+### FileSinglePlaybackDefinition ###
 
-Specifies playback of any section of the audio recorded during the session.
+Specifies continuous playback of any section of an existing WAV file across
+loop cycles without looping.
+
+- `file_name` specifies the WAV file (absolute or relative)
+- `play_from` indicates the loop cycle *within the WAV file* from where the 
+   audio section will be extracted
+- `play_at` indicates the first session loop where the audio section is played
+- `play_duration` indicates how many loop cycles the playback will last
+
+### RecordLoopPlaybackDefinition ###
+
+Specifies loop playback of any section of the audio recorded during the session.
 
 Initialization values:
 
