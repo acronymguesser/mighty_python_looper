@@ -24,13 +24,13 @@ def initialize(looper_settings):
   global RECORD_LOOP_COUNT
   RECORD_LOOP_COUNT = looper_settings.record_loop_count # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
 
-  global playback_position
+  global playback_position_samples
   global playback_wave_data
-  global recording_position
+  global recording_position_bytes
   global recording_wave_data
-  playback_position = 0
+  playback_position_samples = 0
   playback_wave_data = bytearray()
-  recording_position = 0
+  recording_position_bytes = 0
   recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
 
   global exit_looper
@@ -41,9 +41,9 @@ def set_playback_definition_list(pdl):
   playback_definition_list = pdl
 
 def audio_stream_callback(in_data, frame_count, time_info, status_flags):
-  global playback_position
+  global playback_position_samples
   global playback_wave_data
-  global recording_position
+  global recording_position_bytes
   global recording_wave_data
   global exit_looper
 
@@ -54,21 +54,21 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
 
   # APPEND RECORD
 
-  recording_position = ( playback_position * SAMPLE_SIZE ) - LATENCY_COMPENSATION
+  recording_position_bytes = ( playback_position_samples * SAMPLE_SIZE ) - LATENCY_COMPENSATION
 
-  if recording_position < len(recording_wave_data):
+  if recording_position_bytes < len(recording_wave_data):
 
-    if recording_position < 0 and recording_position + len(in_data) > 0:
+    if recording_position_bytes < 0 and recording_position_bytes + len(in_data) > 0:
       # discard data before 0
-      in_data = in_data[:-(recording_position + len(in_data))]
-      recording_position = 0
+      in_data = in_data[:-(recording_position_bytes + len(in_data))]
+      recording_position_bytes = 0
 
-    if recording_position + len(in_data) > len(recording_wave_data):
-      in_data = in_data[recording_position + len(in_data) - len(recording_wave_data):]
+    if recording_position_bytes + len(in_data) > len(recording_wave_data):
+      in_data = in_data[recording_position_bytes + len(in_data) - len(recording_wave_data):]
 
-    if recording_position >= 0 and len(in_data) > 0:
-      recording_wave_data[recording_position:recording_position + len(in_data)] = in_data
-      recording_position += len(in_data)
+    if recording_position_bytes >= 0 and len(in_data) > 0:
+      recording_wave_data[recording_position_bytes:recording_position_bytes + len(in_data)] = in_data
+      recording_position_bytes += len(in_data)
 
   # GENERATE PLAYBACK 
 
@@ -86,13 +86,13 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
   total_samples_to_playback = frame_count * CHANNELS
 
   current_loop = LoopDef(
-    loopn = math.floor( playback_position / LOOP_SIZE_SAMPLES ),
-    loop_start = playback_position % LOOP_SIZE_SAMPLES,
-    loop_end = min( ( playback_position % LOOP_SIZE_SAMPLES ) + total_samples_to_playback, LOOP_SIZE_SAMPLES )
+    loopn = math.floor( playback_position_samples / LOOP_SIZE_SAMPLES ),
+    loop_start = playback_position_samples % LOOP_SIZE_SAMPLES,
+    loop_end = min( ( playback_position_samples % LOOP_SIZE_SAMPLES ) + total_samples_to_playback, LOOP_SIZE_SAMPLES )
   )
   loop_def_list.append(current_loop)
 
-  if math.floor( ( playback_position + total_samples_to_playback ) / LOOP_SIZE_SAMPLES ) > current_loop.loopn:
+  if math.floor( ( playback_position_samples + total_samples_to_playback ) / LOOP_SIZE_SAMPLES ) > current_loop.loopn:
     next_loop = LoopDef(
       loopn = current_loop.loopn + 1,
       loop_start = 0,
@@ -125,7 +125,7 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
 
     out_wave_data = np.concatenate([out_wave_data, loop_def.loop_wave_data])
 
-    playback_position = playback_position + ( loop_def.loop_end - loop_def.loop_start )
+    playback_position_samples = playback_position_samples + ( loop_def.loop_end - loop_def.loop_start )
 
   out_wave_data_bytes = bytes(out_wave_data)
 

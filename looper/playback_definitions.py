@@ -47,7 +47,7 @@ class FileSinglePlaybackDefinition:
       self.wave_data[0:available_bytes] = w.readframes(self.play_from_frames + available_frames)[self.play_from_bytes:self.play_from_bytes + available_bytes]
 
   def get_loop_wave_data(self):
-    from_bytes = math.floor( looper.playback_position / looper.LOOP_SIZE_BYTES ) * looper.LOOP_SIZE_BYTES
+    from_bytes = math.floor( looper.playback_position_samples / looper.LOOP_SIZE_SAMPLES ) * looper.LOOP_SIZE_BYTES
     return self.wave_data[from_bytes:from_bytes + looper.LOOP_SIZE_BYTES]
 
 class RecordLoopPlaybackDefinition:
@@ -67,12 +67,12 @@ class RecordLoopPlaybackDefinition:
     if self.filled:
       return self.wave_data
 
-    if looper.recording_position < self.play_from_bytes:
+    if looper.recording_position_bytes < self.play_from_bytes:
       return self.wave_data # still zeros
 
     # main buffer
 
-    available_bytes = min( looper.recording_position - self.play_from_bytes, looper.LOOP_SIZE_BYTES )
+    available_bytes = min( looper.recording_position_bytes - self.play_from_bytes, looper.LOOP_SIZE_BYTES )
 
     self.wave_data[0:available_bytes] = looper.recording_wave_data[self.play_from_bytes:self.play_from_bytes + available_bytes]
 
@@ -85,7 +85,7 @@ class RecordLoopPlaybackDefinition:
 
     # overlapped buffer
 
-    available_bytes = min( looper.recording_position - self.overlap_from_bytes, looper.LOOP_SIZE_BYTES )
+    available_bytes = min( looper.recording_position_bytes - self.overlap_from_bytes, looper.LOOP_SIZE_BYTES )
 
     main_buffer = np.frombuffer(looper.recording_wave_data[self.play_from_bytes:self.play_from_bytes + available_bytes], dtype=np.uint16)
     overlapped_buffer = np.frombuffer(looper.recording_wave_data[self.overlap_from_bytes:self.overlap_from_bytes + available_bytes], dtype=np.uint16)
