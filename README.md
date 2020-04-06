@@ -95,7 +95,7 @@ loop cycles without looping.
 - `play_from` indicates the loop cycle *within the WAV file* from where the 
    audio section will be extracted
 - `play_at` indicates the first session loop where the audio section is played
-- `play_duration` indicates how many loop cycles the playback will last
+- `play_times` indicates how many loop cycles the playback will last
 
 ### RecordLoopPlaybackDefinition ###
 

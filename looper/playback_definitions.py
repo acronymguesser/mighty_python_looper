@@ -27,11 +27,11 @@ class FileLoopPlaybackDefinition:
     return self.wave_data
 
 class FileSinglePlaybackDefinition:
-  def __init__(self, file_name, play_from, play_at, play_duration):
+  def __init__(self, file_name, play_from, play_at, play_times):
     self.file_name = file_name
     self.play_from = play_from
     self.play_at = play_at
-    self.play_duration = play_duration
+    self.play_times = play_times
 
     self.play_from_frames = self.play_from * looper.LOOP_SIZE_FRAMES
     self.play_from_bytes = self.play_from * looper.LOOP_SIZE_BYTES
@@ -40,10 +40,10 @@ class FileSinglePlaybackDefinition:
       if w.getnchannels() != 2 or w.getsampwidth() != 2:
         raise Exception("Only 16-bit stereo files supported.")
 
-      available_frames = min( w.getnframes() - self.play_from_frames, looper.LOOP_SIZE_FRAMES * self.play_duration )
+      available_frames = min( w.getnframes() - self.play_from_frames, looper.LOOP_SIZE_FRAMES * self.play_times )
       available_bytes = available_frames * looper.CHANNELS * looper.SAMPLE_SIZE
 
-      self.wave_data = bytearray(looper.LOOP_SIZE_BYTES * self.play_duration)
+      self.wave_data = bytearray(looper.LOOP_SIZE_BYTES * self.play_times)
       self.wave_data[0:available_bytes] = w.readframes(self.play_from_frames + available_frames)[self.play_from_bytes:self.play_from_bytes + available_bytes]
 
   def get_loop_wave_data(self):
