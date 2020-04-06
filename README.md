@@ -110,6 +110,7 @@ Initialization values:
 - `overlap` indicates if an additional loop cycle shall be mixed with the cycle
   specified in `play_from`. This is useful to preserve long tails (e.g. when
   using delay or reverb).
+- `duration` indicates the duration in cycles of the loop
 
 # Running the application #
 

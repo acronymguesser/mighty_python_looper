@@ -51,37 +51,41 @@ class FileSinglePlaybackDefinition:
     return self.wave_data[from_bytes:from_bytes + looper.LOOP_SIZE_BYTES]
 
 class RecordLoopPlaybackDefinition:
-  def __init__(self, play_from, play_at, play_times, overlap=False):
+  def __init__(self, play_from, play_at, play_times, overlap=False, duration=1):
     self.play_from = play_from
     self.play_at = play_at
     self.play_times = play_times
     self.overlap = overlap
-    self.wave_data = bytearray(looper.LOOP_SIZE_BYTES)
+    self.duration = duration
+    self.wave_data = bytearray(looper.LOOP_SIZE_BYTES * self.duration)
 
     self.filled = False # set to true when certain that the wave data can be fully reused
     self.play_from_bytes = self.play_from * looper.LOOP_SIZE_BYTES
-    self.overlap_from_bytes = self.play_from_bytes + looper.LOOP_SIZE_BYTES
+    self.overlap_from_bytes = self.play_from_bytes + ( looper.LOOP_SIZE_BYTES * self.duration )
 
   def get_loop_wave_data(self):
 
+    loop_cycle = ( looper.playback_position_cycle - self.play_at ) % self.duration
+    loop_from_bytes = loop_cycle * looper.LOOP_SIZE_BYTES
+
     if self.filled:
-      return self.wave_data
+      return self.wave_data[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES]
 
     if looper.recording_position_bytes < self.play_from_bytes:
-      return self.wave_data # still zeros
+      return self.wave_data[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES] # still zeros
 
     # main buffer
 
-    available_bytes = min( looper.recording_position_bytes - self.play_from_bytes, looper.LOOP_SIZE_BYTES )
+    available_bytes = min( looper.recording_position_bytes - self.play_from_bytes, ( looper.LOOP_SIZE_BYTES * self.duration ) )
 
     self.wave_data[0:available_bytes] = looper.recording_wave_data[self.play_from_bytes:self.play_from_bytes + available_bytes]
 
-    if available_bytes < looper.LOOP_SIZE_BYTES:
-      return self.wave_data
+    if available_bytes < ( looper.LOOP_SIZE_BYTES * self.duration ):
+      return self.wave_data[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES]
 
     if not self.overlap:
       self.filled = True
-      return self.wave_data
+      return self.wave_data[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES]
 
     # overlapped buffer
 
@@ -100,4 +104,4 @@ class RecordLoopPlaybackDefinition:
     if available_bytes >= looper.LOOP_SIZE_BYTES:
       self.filled = True
 
-    return self.wave_data
+    return self.wave_data[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES]
