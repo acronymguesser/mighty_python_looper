@@ -148,10 +148,11 @@ def start_stream():
   global p
   global stream
   p = pyaudio.PyAudio()
-  stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True, input=True, stream_callback=audio_stream_callback)
+  stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
+    frames_per_buffer=4096, output=True, input=True, start=False, stream_callback=audio_stream_callback)
 
   global LATENCY_COMPENSATION
-  LATENCY_COMPENSATION = int( RATE * ( stream.get_input_latency() + stream.get_output_latency() ) * CHANNELS * SAMPLE_SIZE )
+  LATENCY_COMPENSATION = int( RATE * ( stream.get_input_latency() + stream.get_output_latency() + 0.016 ) ) * CHANNELS * SAMPLE_SIZE
 
   stream.start_stream()
 
