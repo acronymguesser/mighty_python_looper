@@ -25,10 +25,12 @@ def initialize(looper_settings):
   RECORD_LOOP_COUNT = looper_settings.record_loop_count # Total loops that will be recorded. After this is reached, no data will be available for new loop playback.
 
   global playback_position_samples
+  global playback_position_cycle
   global playback_wave_data
   global recording_position_bytes
   global recording_wave_data
   playback_position_samples = 0
+  playback_position_cycle = -1
   playback_wave_data = bytearray()
   recording_position_bytes = 0
   recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
@@ -42,6 +44,7 @@ def set_playback_definition_list(pdl):
 
 def audio_stream_callback(in_data, frame_count, time_info, status_flags):
   global playback_position_samples
+  global playback_position_cycle
   global playback_wave_data
   global recording_position_bytes
   global recording_wave_data
@@ -126,6 +129,11 @@ def audio_stream_callback(in_data, frame_count, time_info, status_flags):
     out_wave_data = np.concatenate([out_wave_data, loop_def.loop_wave_data])
 
     playback_position_samples = playback_position_samples + ( loop_def.loop_end - loop_def.loop_start )
+
+    new_playback_position_cycle = math.floor( playback_position_samples / LOOP_SIZE_SAMPLES )
+    if new_playback_position_cycle != playback_position_cycle:
+      playback_position_cycle = new_playback_position_cycle
+      print('Loop Cycle: %d' % ( playback_position_cycle, ))
 
   out_wave_data_bytes = bytes(out_wave_data)
 
