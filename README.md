@@ -63,7 +63,7 @@ The method `get_looper_settings` must return a `LooperSettings` object (in
 module `looper.settings`). It allows adjusting the following values:
 
 - `loop_bpm` is the BPM of the song
-- `loop_duration_beat` inidcates the duration *in beats* of each loop cycle
+- `loop_duration_beats` inidcates the duration *in beats* of each loop cycle
 - `record_loop_count` specifies the total recording buffer, in loop cycles. 
   After that number of loop cycles, the recording is stopped but the playback
   continues with the already recorded audio.
