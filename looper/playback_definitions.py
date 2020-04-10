@@ -77,8 +77,9 @@ class FileSinglePlaybackDefinition:
       self.wave_data[0:available_bytes] = w.readframes(self.play_from_frames + available_frames)[self.play_from_bytes:self.play_from_bytes + available_bytes]
 
   def get_loop_wave_data(self):
-    from_bytes = math.floor( looper.playback_position_samples / looper.LOOP_SIZE_SAMPLES ) * looper.LOOP_SIZE_BYTES
-    return self.wave_data[from_bytes:from_bytes + looper.LOOP_SIZE_BYTES]
+    loop_cycle = ( looper.playback_position_cycle - self.play_at )
+    loop_from_bytes = loop_cycle * looper.LOOP_SIZE_BYTES
+    return self.wave_data[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES]
 
 class RecordLoopPlaybackDefinition:
   def __init__(self, play_from, play_at, play_times, overlap=False, duration=1):
