@@ -51,7 +51,7 @@ class FileLoopPlaybackDefinition:
     loop_cycle = ( looper.playback_position_cycle - self.play_at ) % self.duration
     loop_from_bytes = loop_cycle * looper.LOOP_SIZE_BYTES
 
-    if looper.playback_position_cycle == self.play_at:
+    if (not self.overlap) or looper.playback_position_cycle == self.play_at:
       return self.wave_data[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES]
 
     return self.wave_data_overlapped[loop_from_bytes:loop_from_bytes + looper.LOOP_SIZE_BYTES]
