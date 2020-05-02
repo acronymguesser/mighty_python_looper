@@ -1,6 +1,7 @@
 import pyaudio # http://people.csail.mit.edu/hubert/pyaudio/
 import wave
 import math
+import time
 import numpy as np
 from looper.settings import LooperSettings
 
@@ -29,8 +30,8 @@ def initialize(looper_settings):
   global playback_wave_data
   global recording_position_bytes
   global recording_wave_data
-  playback_position_samples = 0
-  playback_position_cycle = -1
+  playback_position_samples = -1024 + ( looper_settings.playback_starting_loop * LOOP_SIZE_SAMPLES )
+  playback_position_cycle = -1 + looper_settings.playback_starting_loop
   playback_wave_data = bytearray()
   recording_position_bytes = 0
   recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
