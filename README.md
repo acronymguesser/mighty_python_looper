@@ -42,6 +42,10 @@ Audio sections may be associated to either the audio recorded during the
 session or an existing WAV file, thus giving the possibility to play pre-mixed 
 sections synchronized with the song.
 
+# Environment setup #
+
+This app runs on Python 3.6 and depends on numpy and pyaudio.
+
 # Configuring the session #
 
 Sessions are configured in the file `looper_config.py`. That file is 
