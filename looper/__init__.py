@@ -12,6 +12,16 @@ SAMPLE_SIZE = pyaudio.get_sample_size(FORMAT)
 
 playback_definition_list = []
 
+def list_devices():
+  p = pyaudio.PyAudio()
+  info = p.get_host_api_info_by_index(0)
+  numdevices = info.get('deviceCount')
+  for i in range (0,numdevices):
+    if p.get_device_info_by_host_api_device_index(0,i).get('maxInputChannels')>0:
+      print("Input Device ", i, " - ", p.get_device_info_by_host_api_device_index(0,i).get('name'))
+    if p.get_device_info_by_host_api_device_index(0,i).get('maxOutputChannels')>0:
+      print("Output Device ", i, " - ", p.get_device_info_by_host_api_device_index(0,i).get('name'))
+
 def initialize(looper_settings):
 
   global LOOP_SIZE_FRAMES
@@ -36,7 +46,11 @@ def initialize(looper_settings):
   recording_position_bytes = 0
   recording_wave_data = bytearray(LOOP_SIZE_BYTES * RECORD_LOOP_COUNT)
 
+  global input_device_index
+  global output_device_index
   global exit_looper
+  input_device_index = looper_settings.input_device_index
+  output_device_index = looper_settings.output_device_index
   exit_looper = False
 
 def set_playback_definition_list(pdl):
@@ -150,6 +164,7 @@ def start_stream():
   global stream
   p = pyaudio.PyAudio()
   stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
+    input_device_index=1, output_device_index=3,
     frames_per_buffer=4096, output=True, input=True, start=False, stream_callback=audio_stream_callback)
 
   global LATENCY_COMPENSATION
